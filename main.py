@@ -706,11 +706,54 @@ async def cancel_all_tasks(_, message: Message):
     await message.reply(f"**Cancelled {cancelled} running task(s).**")
 
 
+
+async def _health_server():
+    """Minimal HTTP health-check server on port 8000."""
+    from aiohttp import web
+
+    async def health(request):
+        return web.Response(text="OK", status=200)
+
+    app = web.Application()
+    app.router.add_get("/", health)
+    app.router.add_get("/health", health)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", 8000)
+    await site.start()
+    LOGGER(__name__).info("Health server running on port 8000")
+    # Keep running forever
+    while True:
+        await asyncio.sleep(3600)
+
+
+
+async def _run_all():
+    """Start health server then compose both Pyrogram clients."""
+    from aiohttp import web
+    from pyrogram import compose
+
+    # ── health server ──────────────────────────────────────────
+    async def health(request):
+        return web.Response(text="OK", status=200)
+
+    app = web.Application()
+    app.router.add_get("/", health)
+    app.router.add_get("/health", health)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", 8000)
+    await site.start()
+    LOGGER(__name__).info("Health server running on port 8000")
+
+    # ── run both Pyrogram clients ──────────────────────────────
+    LOGGER(__name__).info("Bot Started!")
+    await compose([user, bot])
+
+
 if __name__ == "__main__":
     try:
-        LOGGER(__name__).info("Bot Started!")
-        user.start()
-        bot.run()
+        asyncio.run(_run_all())
     except KeyboardInterrupt:
         pass
     except Exception as err:
