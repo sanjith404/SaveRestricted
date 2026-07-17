@@ -122,7 +122,7 @@ async def help_command(_, message: Message):
         "   – Send `/dl <post_URL>` **or** just paste a Telegram post link to fetch photos, videos, audio, or documents.\n\n"
         "➤ **Batch Download**\n"
         "   – Send `/bdl start_link end_link` to grab a series of posts in one go.\n"
-        "      💡 Example: `/bdl https://t.me/mychannel/100 https://t.me/mychannel/120`\n"
+        "     💡 Example: `/bdl https://t.me/mychannel/100 https://t.me/mychannel/120`\n"
         "**It will download all posts from ID 100 to 120.**\n\n"
         "➤ **Forward Settings**\n"
         "   – Send `/setforward -1001234567890,-1009876543210` to set multiple target channels\n"
@@ -706,11 +706,11 @@ async def cancel_all_tasks(_, message: Message):
     await message.reply(f"**Cancelled {cancelled} running task(s).**")
 
 
-
-async def _health_server():
-    """Minimal HTTP health-check server on port 8000."""
+async def start_services():
     from aiohttp import web
-
+    from pyrogram import idle
+    
+    # 1. Start the Health Server
     async def health(request):
         return web.Response(text="OK", status=200)
 
@@ -719,41 +719,31 @@ async def _health_server():
     app.router.add_get("/health", health)
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8000)
+    
+    # Automatically grab Render's port, or default to 8000
+    port = int(os.environ.get("PORT", 8000))
+    site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-    LOGGER(__name__).info("Health server running on port 8000")
-    # Keep running forever
-    while True:
-        await asyncio.sleep(3600)
+    LOGGER(__name__).info(f"Health server running on port {port}")
 
-
-
-async def _run_all():
-    """Start health server then compose both Pyrogram clients."""
-    from aiohttp import web
-    from pyrogram import compose
-
-    # ── health server ──────────────────────────────────────────
-    async def health(request):
-        return web.Response(text="OK", status=200)
-
-    app = web.Application()
-    app.router.add_get("/", health)
-    app.router.add_get("/health", health)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8000)
-    await site.start()
-    LOGGER(__name__).info("Health server running on port 8000")
-
-    # ── run both Pyrogram clients ──────────────────────────────
-    LOGGER(__name__).info("Bot Started!")
-    await compose([user, bot])
-
+    # 2. Start the Telegram Bots
+    LOGGER(__name__).info("Starting bots...")
+    await bot.start()
+    await user.start()
+    LOGGER(__name__).info("Bot Started Successfully!")
+    
+    # 3. Keep everything running
+    await idle()
+    
+    # 4. Graceful shutdown
+    await bot.stop()
+    await user.stop()
 
 if __name__ == "__main__":
     try:
-        asyncio.run(_run_all())
+        # Get the existing loop instead of creating a conflicting one
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(start_services())
     except KeyboardInterrupt:
         pass
     except Exception as err:
