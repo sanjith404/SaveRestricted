@@ -6,6 +6,7 @@ from pyleaves import Leaves
 from helpers.files import fileSizeLimit
 from helpers.msg import get_parsed_msg
 from logger import LOGGER
+from pyrogram.types import InputMediaPhoto, InputMediaVideo, InputMediaDocument
 
 # Progress bar template
 PROGRESS_BAR = "\nPercentage: {percentage:.2f}% | {current}/{total}\nSpeed: {speed}/s\nEstimated Time Left: {est_time}s"
@@ -32,3 +33,22 @@ async def send_media(bot, message, media_path, media_type, caption, progress_mes
         await message.reply_audio(media_path, thumb=thumb, caption=caption or "", progress=Leaves.progress_for_pyrogram, progress_args=progress_args)
     else:
         await message.reply_document(media_path, thumb=thumb, caption=caption or "", progress=Leaves.progress_for_pyrogram, progress_args=progress_args)
+async def processMediaGroup(chat_message, bot, message):
+    media_group_messages = await chat_message.get_media_group()
+    valid_media = []
+    
+    # We must download each item in the group to send them
+    for msg in media_group_messages:
+        if msg.photo or msg.video or msg.document:
+            path = await msg.download()
+            if msg.photo:
+                valid_media.append(InputMediaPhoto(media=path, caption=msg.caption))
+            elif msg.video:
+                valid_media.append(InputMediaVideo(media=path, caption=msg.caption))
+            elif msg.document:
+                valid_media.append(InputMediaDocument(media=path, caption=msg.caption))
+            
+    if valid_media:
+        await bot.send_media_group(chat_id=message.chat.id, media=valid_media)
+        return True
+    return False
