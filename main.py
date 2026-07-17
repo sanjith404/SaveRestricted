@@ -122,7 +122,7 @@ async def help_command(_, message: Message):
         "   – Send `/dl <post_URL>` **or** just paste a Telegram post link to fetch photos, videos, audio, or documents.\n\n"
         "➤ **Batch Download**\n"
         "   – Send `/bdl start_link end_link` to grab a series of posts in one go.\n"
-        "     💡 Example: `/bdl https://t.me/mychannel/100 https://t.me/mychannel/120`\n"
+        "      💡 Example: `/bdl https://t.me/mychannel/100 https://t.me/mychannel/120`\n"
         "**It will download all posts from ID 100 to 120.**\n\n"
         "➤ **Forward Settings**\n"
         "   – Send `/setforward -1001234567890,-1009876543210` to set multiple target channels\n"
@@ -710,7 +710,7 @@ async def start_services():
     from aiohttp import web
     from pyrogram import idle
     
-    # 1. Start the Health Server
+    # 1. Start the Health Server for Render
     async def health(request):
         return web.Response(text="OK", status=200)
 
@@ -741,7 +741,6 @@ async def start_services():
 
 if __name__ == "__main__":
     try:
-        # Get the existing loop instead of creating a conflicting one
         loop = asyncio.get_event_loop()
         loop.run_until_complete(start_services())
     except KeyboardInterrupt:
