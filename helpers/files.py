@@ -1,9 +1,9 @@
+# helpers/files.py
 # Copyright (C) @ITACHI_404
 # Developer: https://t.me/ITACHI_404
 
 import os
 from typing import Optional
-
 from logger import LOGGER
 
 SIZE_UNITS = ["B", "KB", "MB", "GB", "TB", "PB"]
@@ -13,10 +13,8 @@ def get_download_path(folder_id: int, filename: str, root_dir: str = "downloads"
     os.makedirs(folder, exist_ok=True)
     return os.path.join(folder, filename)
 
-
 def cleanup_download(path: str) -> None:
     try:
-        # Trimmed directory path out of the cleanup logs
         LOGGER(__name__).info(f"Cleaned cache: {os.path.basename(path)}")
         
         if os.path.exists(path):
@@ -27,22 +25,17 @@ def cleanup_download(path: str) -> None:
         folder = os.path.dirname(path)
         if os.path.isdir(folder) and not os.listdir(folder):
             os.rmdir(folder)
-
     except Exception as e:
         LOGGER(__name__).error(f"Cleanup failed for {os.path.basename(path)}: {e}")
-
 
 def get_readable_file_size(size_in_bytes: Optional[float]) -> str:
     if size_in_bytes is None or size_in_bytes < 0:
         return "0B"
-
     for unit in SIZE_UNITS:
         if size_in_bytes < 1024:
             return f"{size_in_bytes:.2f} {unit}"
         size_in_bytes /= 1024
-
     return "File too large"
-
 
 def get_readable_time(seconds: int) -> str:
     result = ""
@@ -62,8 +55,8 @@ def get_readable_time(seconds: int) -> str:
     result += f"{seconds}s"
     return result
 
-
 async def fileSizeLimit(file_size, message, action_type="download", is_premium=False):
+    # 2GB limit for standard, 4GB for premium
     MAX_FILE_SIZE = 2 * 2097152000 if is_premium else 2097152000
     if file_size > MAX_FILE_SIZE:
         await message.reply(
