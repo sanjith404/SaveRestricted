@@ -6,6 +6,7 @@ import shutil
 import psutil
 import asyncio
 import json
+import threading
 from time import time
 
 from pyleaves import Leaves
@@ -706,43 +707,37 @@ async def cancel_all_tasks(_, message: Message):
     await message.reply(f"**Cancelled {cancelled} running task(s).**")
 
 
-async def start_services():
+def start_health_server():
+    """Starts a minimal web server for Render health checks."""
     from aiohttp import web
-    from pyrogram import idle
-    
-    # 1. Start the Health Server for Render
     async def health(request):
         return web.Response(text="OK", status=200)
-
     app = web.Application()
     app.router.add_get("/", health)
     app.router.add_get("/health", health)
     runner = web.AppRunner(app)
-    await runner.setup()
     
-    # Automatically grab Render's port, or default to 8000
-    port = int(os.environ.get("PORT", 8000))
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-    LOGGER(__name__).info(f"Health server running on port {port}")
+    async def run_server():
+        await runner.setup()
+        port = int(os.environ.get("PORT", 8000))
+        site = web.TCPSite(runner, "0.0.0.0", port)
+        await site.start()
+        LOGGER(__name__).info(f"Health server running on port {port}")
 
-    # 2. Start the Telegram Bots
-    LOGGER(__name__).info("Starting bots...")
-    await bot.start()
-    await user.start()
-    LOGGER(__name__).info("Bot Started Successfully!")
-    
-    # 3. Keep everything running
-    await idle()
-    
-    # 4. Graceful shutdown
-    await bot.stop()
-    await user.stop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(run_server())
+    loop.run_forever()
+
 
 if __name__ == "__main__":
     try:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(start_services())
+        # Start the health server in a background thread
+        threading.Thread(target=start_health_server, daemon=True).start()
+        
+        LOGGER(__name__).info("Bot Started!")
+        user.start()
+        bot.run()
     except KeyboardInterrupt:
         pass
     except Exception as err:
