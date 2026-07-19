@@ -1,14 +1,13 @@
+# helpers/msg.py
 # Copyright (C) @ITACHI_404
 # Developer: https://t.me/ITACHI_404
 
 from pyrogram.parser import Parser
 from pyrogram.utils import get_channel_id
 
-
 async def get_parsed_msg(text, entities):
     return Parser.unparse(text, entities or [], is_html=False)
     
-
 def getChatMsgID(link: str):
     linkps = link.split("/")
     chat_id, message_thread_id, message_id = None, None, None
@@ -38,7 +37,6 @@ def getChatMsgID(link: str):
         raise ValueError("Please send a valid Telegram post URL.")
 
     return chat_id, message_id
-
 
 def get_file_name(message_id: int, chat_message) -> str:
     if chat_message.document:
