@@ -10,7 +10,7 @@ from pyleaves import Leaves
 from helpers.files import fileSizeLimit
 from helpers.msg import get_parsed_msg
 from logger import LOGGER
-from pyrogram.types import InputMediaPhoto, InputMediaVideo, InputMediaDocument
+from pyrogram.types import InputMediaPhoto, InputMediaVideo, InputMediaDocument, InputMediaAudio
 from pyrogram.errors import FloodWait
 
 # Import our new MongoDB database methods
@@ -45,9 +45,9 @@ async def processMediaGroup(chat_message, bot, message):
     valid_media = []
     downloaded_paths = [] # Keep track of files so we can delete them later
     
-    # 1. Download all items in the group
+    # 1. Download all items in the group (Now includes audio!)
     for msg in media_group_messages:
-        if msg.photo or msg.video or msg.document:
+        if msg.photo or msg.video or msg.document or msg.audio:
             path = await msg.download()
             downloaded_paths.append(path)
             
@@ -55,6 +55,8 @@ async def processMediaGroup(chat_message, bot, message):
                 valid_media.append(InputMediaPhoto(media=path, caption=msg.caption))
             elif msg.video:
                 valid_media.append(InputMediaVideo(media=path, caption=msg.caption))
+            elif msg.audio:
+                valid_media.append(InputMediaAudio(media=path, caption=msg.caption))
             elif msg.document:
                 valid_media.append(InputMediaDocument(media=path, caption=msg.caption))
             
