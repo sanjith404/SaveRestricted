@@ -241,7 +241,10 @@ async def forward_to_channels(bot: Client, message: Message, media_path: str, me
     if not channel_ids:
         return
     
+    # Extract the filename from the path
+    filename = os.path.basename(media_path)
     success_count = 0
+    
     for channel_id in channel_ids:
         try:
             if media_type == "photo":
@@ -273,8 +276,29 @@ async def forward_to_channels(bot: Client, message: Message, media_path: str, me
             LOGGER(__name__).error(f"Error forwarding to {channel_id}: {e}")
             
     if success_count > 0:
-        await message.reply(f"✅ **Forwarded to {success_count} channel(s)**")
+        # Now including the filename in the success reply
+        await message.reply(f"✅ **{filename} forwarded to {success_count} channel(s)**")
 
+
+async def forward_text_to_channels(bot: Client, message: Message, text: str):
+    channel_ids = await get_target_channel_ids()
+    if not channel_ids:
+        return
+        
+    success_count = 0
+    for channel_id in channel_ids:
+        try:
+            await bot.send_message(channel_id, text)
+            success_count += 1
+            await asyncio.sleep(0.5)
+        except FloodWait as e:
+            await asyncio.sleep(e.value)
+        except Exception as e:
+            LOGGER(__name__).error(f"Error forwarding text to {channel_id}: {e}")
+            
+    if success_count > 0:
+        # Message for forwarded text content
+        await message.reply(f"✅ **Text message forwarded to {success_count} channel(s)**")
 
 async def forward_text_to_channels(bot: Client, message: Message, text: str):
     channel_ids = await get_target_channel_ids()
