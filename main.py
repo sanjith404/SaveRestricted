@@ -358,8 +358,12 @@ async def download_range(bot: Client, message: Message):
     
     prefix = args[1].rsplit("/", 1)[0]
     loading = await message.reply(f"📥 **Downloading posts {start_id}–{end_id}…**")
+    
     downloaded = skipped = failed = 0
     current_task = asyncio.current_task()
+    
+    # NEW: Keep track of processed albums so we don't duplicate them!
+    processed_groups = set() 
     
     for msg_id in range(start_id, end_id + 1):
         if current_task.cancelled():
@@ -371,9 +375,17 @@ async def download_range(bot: Client, message: Message):
             if not chat_msg or not (chat_msg.media or chat_msg.text or chat_msg.caption):
                 skipped += 1
                 continue
+            
+            # NEW: If part of an album we already downloaded, skip it to save time/bandwidth
+            if chat_msg.media_group_id:
+                if chat_msg.media_group_id in processed_groups:
+                    skipped += 1
+                    continue
+                processed_groups.add(chat_msg.media_group_id)
                 
             await handle_download(bot, message, url)
             downloaded += 1
+            
         except FloodWait as e:
             await asyncio.sleep(e.value)
             await handle_download(bot, message, url)
@@ -393,10 +405,9 @@ async def download_range(bot: Client, message: Message):
         "**✅ Batch Process Complete!**\n"
         "━━━━━━━━━━━━━━━━━━━\n"
         f"📥 **Downloaded** : `{downloaded}` post(s)\n"
-        f"⏭️ **Skipped**    : `{skipped}`\n"
+        f"⏭️ **Skipped**    : `{skipped}` (already processed or empty)\n"
         f"❌ **Failed**     : `{failed}` error(s)"
     )
-
 
 @bot.on_message(filters.private & ~filters.command(["start", "help", "dl", "stats", "logs", "killall", "bdl", "rdl", "setthumb", "thumb", "delthumb", "broadcast", "setforward", "addforward", "getforward", "removeforward"]))
 async def handle_any_message(bot: Client, message: Message):
