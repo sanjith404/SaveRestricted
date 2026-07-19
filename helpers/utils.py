@@ -43,9 +43,9 @@ async def send_media(bot, message, media_path, media_type, caption, progress_mes
 async def processMediaGroup(chat_message, bot, message):
     media_group_messages = await chat_message.get_media_group()
     valid_media = []
-    downloaded_paths = [] # Keep track of files so we can delete them later
+    downloaded_paths = [] 
     
-    # 1. Download all items in the group (Now includes audio!)
+    # 1. Download all items in the group (Includes photo, video, document, and audio)
     for msg in media_group_messages:
         if msg.photo or msg.video or msg.document or msg.audio:
             path = await msg.download()
@@ -69,20 +69,26 @@ async def processMediaGroup(chat_message, bot, message):
     except Exception as e:
         LOGGER(__name__).error(f"Error sending media group to user: {e}")
 
-    # 3. Forward the media group to all configured channels
+    # 3. Forward the media group to all configured channels with visual tracker status
     channel_ids = await get_target_channel_ids()
+    success_count = 0
     if channel_ids:
         for channel_id in channel_ids:
             try:
                 await bot.send_media_group(chat_id=channel_id, media=valid_media)
-                await asyncio.sleep(1) # Anti-flood delay between channels
+                success_count += 1
+                await asyncio.sleep(1) 
             except FloodWait as e:
                 await asyncio.sleep(e.value)
                 await bot.send_media_group(chat_id=channel_id, media=valid_media)
+                success_count += 1
             except Exception as e:
                 LOGGER(__name__).error(f"Error forwarding media group to {channel_id}: {e}")
+                
+        if success_count > 0:
+            await message.reply(f"✅ **Forwarded to {success_count} channel(s)**")
 
-    # 4. Clean up downloaded files from Render's disk
+    # 4. Clean up downloaded files from disk
     for path in downloaded_paths:
         if os.path.exists(path):
             try:
