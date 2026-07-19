@@ -298,25 +298,6 @@ async def forward_text_to_channels(bot: Client, message: Message, text: str):
         # Message for forwarded text content
         await message.reply(f"✅ **Text message forwarded to {success_count} channel(s)**")
 
-async def forward_text_to_channels(bot: Client, message: Message, text: str):
-    channel_ids = await get_target_channel_ids()
-    if not channel_ids:
-        return
-        
-    success_count = 0
-    for channel_id in channel_ids:
-        try:
-            await bot.send_message(channel_id, text)
-            success_count += 1
-            await asyncio.sleep(0.5)
-        except FloodWait as e:
-            await asyncio.sleep(e.value)
-        except Exception as e:
-            LOGGER(__name__).error(f"Error forwarding text to {channel_id}: {e}")
-            
-    if success_count > 0:
-        await message.reply(f"✅ **Forwarded to {success_count} channel(s)**")
-
 
 async def handle_download(bot: Client, message: Message, post_url: str):
     if "?" in post_url: 
