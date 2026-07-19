@@ -236,11 +236,12 @@ async def broadcast_command(_, message: Message):
     await message.reply(f"✅ **Broadcast complete! Sent to {sent} users.**")
 
 
-async def forward_to_channels(bot: Client, media_path: str, media_type: str, caption: str):
+async def forward_to_channels(bot: Client, message: Message, media_path: str, media_type: str, caption: str):
     channel_ids = await get_target_channel_ids()
     if not channel_ids:
         return
     
+    success_count = 0
     for channel_id in channel_ids:
         try:
             if media_type == "photo":
@@ -251,25 +252,48 @@ async def forward_to_channels(bot: Client, media_path: str, media_type: str, cap
                 await bot.send_audio(channel_id, media_path, caption=caption)
             elif media_type == "document":
                 await bot.send_document(channel_id, media_path, caption=caption)
+            
+            success_count += 1
             await asyncio.sleep(0.5)
         except FloodWait as e:
             await asyncio.sleep(e.value)
+            try:
+                if media_type == "photo":
+                    await bot.send_photo(channel_id, media_path, caption=caption)
+                elif media_type == "video":
+                    await bot.send_video(channel_id, media_path, caption=caption)
+                elif media_type == "audio":
+                    await bot.send_audio(channel_id, media_path, caption=caption)
+                elif media_type == "document":
+                    await bot.send_document(channel_id, media_path, caption=caption)
+                success_count += 1
+            except:
+                pass
         except Exception as e:
             LOGGER(__name__).error(f"Error forwarding to {channel_id}: {e}")
+            
+    if success_count > 0:
+        await message.reply(f"✅ **Forwarded to {success_count} channel(s)**")
 
-async def forward_text_to_channels(bot: Client, text: str):
+
+async def forward_text_to_channels(bot: Client, message: Message, text: str):
     channel_ids = await get_target_channel_ids()
     if not channel_ids:
         return
         
+    success_count = 0
     for channel_id in channel_ids:
         try:
             await bot.send_message(channel_id, text)
+            success_count += 1
             await asyncio.sleep(0.5)
         except FloodWait as e:
             await asyncio.sleep(e.value)
         except Exception as e:
             LOGGER(__name__).error(f"Error forwarding text to {channel_id}: {e}")
+            
+    if success_count > 0:
+        await message.reply(f"✅ **Forwarded to {success_count} channel(s)**")
 
 
 async def handle_download(bot: Client, message: Message, post_url: str):
@@ -310,15 +334,15 @@ async def handle_download(bot: Client, message: Message, post_url: str):
                 progress_message, start_time
             )
             
-            # Forward to configured channels
-            await forward_to_channels(bot, media_path, media_type, parsed_caption)
+            # Forward to configured channels with status reply tracking
+            await forward_to_channels(bot, message, media_path, media_type, parsed_caption)
             
         elif chat_message.text or chat_message.caption:
             parsed_text = await get_parsed_msg(chat_message.text or chat_message.caption or "", chat_message.entities or chat_message.caption_entities)
             await message.reply(parsed_text)
             
             text_content = f"**From {post_url}:**\n\n{parsed_text}"
-            await forward_text_to_channels(bot, text_content)
+            await forward_text_to_channels(bot, message, text_content)
             
     except FloodWait as e:
         await message.reply(f"⚠️ **Telegram limits reached. Waiting {e.value} seconds...**")
@@ -361,8 +385,6 @@ async def download_range(bot: Client, message: Message):
     
     downloaded = skipped = failed = 0
     current_task = asyncio.current_task()
-    
-    # NEW: Keep track of processed albums so we don't duplicate them!
     processed_groups = set() 
     
     for msg_id in range(start_id, end_id + 1):
@@ -376,7 +398,6 @@ async def download_range(bot: Client, message: Message):
                 skipped += 1
                 continue
             
-            # NEW: If part of an album we already downloaded, skip it to save time/bandwidth
             if chat_msg.media_group_id:
                 if chat_msg.media_group_id in processed_groups:
                     skipped += 1
@@ -408,6 +429,7 @@ async def download_range(bot: Client, message: Message):
         f"⏭️ **Skipped**    : `{skipped}` (already processed or empty)\n"
         f"❌ **Failed**     : `{failed}` error(s)"
     )
+
 
 @bot.on_message(filters.private & ~filters.command(["start", "help", "dl", "stats", "logs", "killall", "bdl", "rdl", "setthumb", "thumb", "delthumb", "broadcast", "setforward", "addforward", "getforward", "removeforward"]))
 async def handle_any_message(bot: Client, message: Message):
