@@ -6,3 +6,4 @@ psutil
 pillow
 aiohttp
 aiofiles
+motor
