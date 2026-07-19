@@ -26,19 +26,34 @@ async def send_media(bot, message, media_path, media_type, caption, progress_mes
     file_size = os.path.getsize(media_path)
     if not await fileSizeLimit(file_size, message, "upload"): return
 
-    # Fetch Custom Thumbnail from MongoDB using File ID
-    thumb = await get_thumb(message.from_user.id)
-
-    progress_args = progressArgs("📥 Uploading Progress", progress_message, start_time)
+    # Fetch Custom Thumbnail file_id from MongoDB
+    thumb_file_id = await get_thumb(message.from_user.id)
+    thumb_path = None
     
-    if media_type == "photo":
-        await message.reply_photo(media_path, caption=caption or "", progress=Leaves.progress_for_pyrogram, progress_args=progress_args)
-    elif media_type == "video":
-        await message.reply_video(media_path, thumb=thumb, caption=caption or "", progress=Leaves.progress_for_pyrogram, progress_args=progress_args)
-    elif media_type == "audio":
-        await message.reply_audio(media_path, thumb=thumb, caption=caption or "", progress=Leaves.progress_for_pyrogram, progress_args=progress_args)
-    else:
-        await message.reply_document(media_path, thumb=thumb, caption=caption or "", progress=Leaves.progress_for_pyrogram, progress_args=progress_args)
+    try:
+        # Pyrogram needs a local file for thumbnails, not a file_id string.
+        # So we download the thumbnail temporarily before uploading the main file.
+        if thumb_file_id:
+            thumb_path = await bot.download_media(thumb_file_id, file_name=f"downloads/thumb_{message.from_user.id}.jpg")
+
+        progress_args = progressArgs("📥 Uploading Progress", progress_message, start_time)
+        
+        if media_type == "photo":
+            await message.reply_photo(media_path, caption=caption or "", progress=Leaves.progress_for_pyrogram, progress_args=progress_args)
+        elif media_type == "video":
+            await message.reply_video(media_path, thumb=thumb_path, caption=caption or "", progress=Leaves.progress_for_pyrogram, progress_args=progress_args)
+        elif media_type == "audio":
+            await message.reply_audio(media_path, thumb=thumb_path, caption=caption or "", progress=Leaves.progress_for_pyrogram, progress_args=progress_args)
+        else:
+            await message.reply_document(media_path, thumb=thumb_path, caption=caption or "", progress=Leaves.progress_for_pyrogram, progress_args=progress_args)
+            
+    finally:
+        # Clean up the temporary thumbnail file so it doesn't waste disk space
+        if thumb_path and os.path.exists(thumb_path):
+            try:
+                os.remove(thumb_path)
+            except:
+                pass
 
 async def processMediaGroup(chat_message, bot, message):
     media_group_messages = await chat_message.get_media_group()
