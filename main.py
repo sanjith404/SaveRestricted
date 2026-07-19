@@ -241,12 +241,12 @@ async def forward_to_channels(bot: Client, message: Message, media_path: str, me
     if not channel_ids:
         return
     
-    # Extract the filename from the path
     filename = os.path.basename(media_path)
     success_count = 0
     
     for channel_id in channel_ids:
         try:
+            # Attempt to send the media
             if media_type == "photo":
                 await bot.send_photo(channel_id, media_path, caption=caption)
             elif media_type == "video":
@@ -258,27 +258,25 @@ async def forward_to_channels(bot: Client, message: Message, media_path: str, me
             
             success_count += 1
             await asyncio.sleep(0.5)
+
         except FloodWait as e:
+            # Handle FloodWait specifically
             await asyncio.sleep(e.value)
             try:
-                if media_type == "photo":
-                    await bot.send_photo(channel_id, media_path, caption=caption)
-                elif media_type == "video":
-                    await bot.send_video(channel_id, media_path, caption=caption)
-                elif media_type == "audio":
-                    await bot.send_audio(channel_id, media_path, caption=caption)
-                elif media_type == "document":
-                    await bot.send_document(channel_id, media_path, caption=caption)
+                if media_type == "photo": await bot.send_photo(channel_id, media_path, caption=caption)
+                elif media_type == "video": await bot.send_video(channel_id, media_path, caption=caption)
+                elif media_type == "audio": await bot.send_audio(channel_id, media_path, caption=caption)
+                elif media_type == "document": await bot.send_document(channel_id, media_path, caption=caption)
                 success_count += 1
-            except:
-                pass
+            except Exception as e:
+                LOGGER(__name__).error(f"Retry failed for {channel_id}: {e}")
+
         except Exception as e:
+            # Handle all other errors
             LOGGER(__name__).error(f"Error forwarding to {channel_id}: {e}")
             
     if success_count > 0:
-        # Now including the filename in the success reply
         await message.reply(f"✅ **{filename} forwarded to {success_count} channel(s)**")
-
 
 async def forward_text_to_channels(bot: Client, message: Message, text: str):
     channel_ids = await get_target_channel_ids()
