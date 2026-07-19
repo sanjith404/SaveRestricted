@@ -26,20 +26,18 @@ async def send_media(bot, message, media_path, media_type, caption, progress_mes
     file_size = os.path.getsize(media_path)
     if not await fileSizeLimit(file_size, message, "upload"): return
 
-    # Get thumbnail ID
     thumb_file_id = await get_thumb(message.from_user.id)
     thumb_path = None
     
-    # Safely download the thumbnail if it exists
+    # Download the thumbnail to a temporary file path
     if thumb_file_id:
         try:
-            thumb_path = await bot.download_media(thumb_file_id)
+            thumb_path = await bot.download_media(thumb_file_id, file_name=f"thumb_{message.id}.jpg")
         except Exception as e:
             LOGGER(__name__).warning(f"Could not download thumbnail: {e}")
 
     progress_args = progressArgs("📥 Uploading Progress", progress_message, start_time)
     
-    # Upload with the thumbnail path (or None if it failed to download)
     try:
         if media_type == "photo":
             sent_msg = await message.reply_photo(media_path, caption=caption or "", progress=Leaves.progress_for_pyrogram, progress_args=progress_args)
@@ -50,7 +48,7 @@ async def send_media(bot, message, media_path, media_type, caption, progress_mes
         else:
             sent_msg = await message.reply_document(media_path, thumb=thumb_path, caption=caption or "", progress=Leaves.progress_for_pyrogram, progress_args=progress_args)
     finally:
-        # Cleanup the temp thumbnail file after sending
+        # Always clean up the temporary thumbnail file
         if thumb_path and os.path.exists(thumb_path):
             os.remove(thumb_path)
             
